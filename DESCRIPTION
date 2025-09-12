@@ -1,10 +1,10 @@
 Package: ClusterGVis
 Title: One-Step to Cluster and Visualize Gene Expression Data
-Version: 0.99.3
+Version: 0.99.4
 Authors@R: 
   person(given = "Jun", 
         family = "Zhang",    
-        email = "3219030654@stu.cpu.edu.cn", 
+        email = "1138976957@qq.com", 
         role  = c("aut", "cre", "cph"), 
         comment = c(ORCID = "0000-0001-7692-9105"))
 Description: Streamlining the clustering and visualization of time-series gene 

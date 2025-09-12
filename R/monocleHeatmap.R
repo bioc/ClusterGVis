@@ -31,7 +31,7 @@ traverseTree <- function(g, starting_cell, end_cells) {
     stop("Package 'igraph' is required for this functionality.
          Please install it.")
   }
-  
+
   return(list(
     shortest_path = path$vpath,
     distance = distance,
@@ -122,7 +122,7 @@ plot_pseudotime_heatmap2 <- function(cds_subset,
   if (!requireNamespace("Biobase", quietly = TRUE)) {
     stop("Package 'Biobase' is required. Please install it.")
   }
-  
+
   num_clusters <- min(num_clusters, nrow(cds_subset))
   pseudocount <- 1
   newdata <- data.frame(
@@ -133,7 +133,7 @@ plot_pseudotime_heatmap2 <- function(cds_subset,
         length.out = 100
       )
   )
-  
+
   if (requireNamespace("monocle", quietly = TRUE)) {
     m <- monocle::genSmoothCurves(
       cds_subset,
@@ -142,13 +142,13 @@ plot_pseudotime_heatmap2 <- function(cds_subset,
       relative_expr = TRUE,
       new_data = newdata
     )
-    
-    
+
+
     # remove genes with no expression in any condition
     m <- m[!apply(m, 1, sum) == 0, ]
-    
+
     norm_method <- match.arg(norm_method)
-    
+
     # FIXME: this needs to check that vst values can even be computed.
     # (They can only be if we're using NB as the expressionFamily)
     if (norm_method == "vstExprs" &&
@@ -160,9 +160,9 @@ plot_pseudotime_heatmap2 <- function(cds_subset,
   } else {
     warning("Cannot find monocle 'monocle' is not installed.")
   }
-  
-  
-  
+
+
+
   # Row-center the data.
   m <- m[!apply(m, 1, sd) == 0, ]
   m <- Matrix::t(scale(Matrix::t(m), center = TRUE))
@@ -170,19 +170,19 @@ plot_pseudotime_heatmap2 <- function(cds_subset,
   m[is.nan(m)] <- 0
   m[m > scale_max] <- scale_max
   m[m < scale_min] <- scale_min
-  
+
   heatmap_matrix <- m
-  
+
   row_dist <- as.dist((1 - cor(Matrix::t(heatmap_matrix))) / 2)
   row_dist[is.na(row_dist)] <- 1
-  
+
   if (is.null(hmcols)) {
     bks <- seq(-3.1, 3.1, by = 0.1)
     hmcols <- colorRamps::blue2green2red(length(bks) - 1)
   } else {
     bks <- seq(-3.1, 3.1, length.out = length(hmcols))
   }
-  
+
   if (requireNamespace("pheatmap", quietly = TRUE)) {
     ph <- pheatmap::pheatmap(
       heatmap_matrix,
@@ -203,16 +203,16 @@ plot_pseudotime_heatmap2 <- function(cds_subset,
   } else {
     warning("Cannot create heatmap. 'pheatmap' is not installed.")
   }
-  
-  
-  
+
+
+
   if (cluster_rows) {
     annotation_row <- data.frame(Cluster =
                                    factor(cutree(ph$tree_row, num_clusters)))
   } else {
     annotation_row <- NULL
   }
-  
+
   if (!is.null(add_annotation_row)) {
     old_colnames_length <- ncol(annotation_row)
     annotation_row <- cbind(annotation_row,
@@ -224,7 +224,7 @@ plot_pseudotime_heatmap2 <- function(cds_subset,
     # Biobase::fData(absolute_cds[row.names(annotation_row),
     # ])$gene_short_name), 1]
   }
-  
+
   if (!is.null(add_annotation_col)) {
     if (nrow(add_annotation_col) != 100) {
       stop(
@@ -236,14 +236,14 @@ plot_pseudotime_heatmap2 <- function(cds_subset,
   } else {
     annotation_col <- NA
   }
-  
+
   if (use_gene_short_name == TRUE) {
     if (is.null(Biobase::fData(cds_subset)$gene_short_name) == FALSE) {
       feature_label <- as.character(Biobase::fData(cds_subset)
                                     [row.names(heatmap_matrix),
                                       "gene_short_name"])
       feature_label[is.na(feature_label)] <- row.names(heatmap_matrix)
-      
+
       row_ann_labels <- as.character(
         Biobase::fData(cds_subset)[row.names(annotation_row),
                                    "gene_short_name"])
@@ -258,14 +258,14 @@ plot_pseudotime_heatmap2 <- function(cds_subset,
       row_ann_labels <- row.names(annotation_row)
     }
   }
-  
+
   row.names(heatmap_matrix) <- feature_label
   if (!is.null(annotation_row)) {
     row.names(annotation_row) <- row_ann_labels
   }
-  
+
   colnames(heatmap_matrix) <- c(seq_len(ncol(heatmap_matrix)))
-  
+
   if (requireNamespace("pheatmap", quietly = TRUE)) {
     ph_res <- pheatmap::pheatmap(
       heatmap_matrix[, ],
@@ -295,15 +295,15 @@ plot_pseudotime_heatmap2 <- function(cds_subset,
   } else {
     warning("Cannot create heatmap. 'pheatmap' is not installed.")
   }
-  
-  
+
+
   # ============================================================================
   # prepare data
   wide.res <- cbind(heatmap_matrix, annotation_row) |>
     data.frame(., check.names = FALSE) |>
     dplyr::mutate(gene = rownames(.), .before = 1) |>
     dplyr::rename(cluster = Cluster)
-  
+
   # wide to long
   df <- reshape2::melt(
     wide.res,
@@ -312,33 +312,33 @@ plot_pseudotime_heatmap2 <- function(cds_subset,
     value.name = "norm_value"
   ) |>
     dplyr::mutate(cell_type = as.numeric(as.character(cell_type)))
-  
+
   # add cluster name
   df$cluster_name <- paste("cluster ", df$cluster, sep = "")
-  
+
   # add gene number
   cl.info <- data.frame(table(wide.res$cluster)) |>
     dplyr::mutate(Var1 = as.numeric(as.character(Var1))) |>
     dplyr::arrange(Var1)
-  
+
   id <- unique(df$cluster_name)
   purrr::map_df(seq_along(id), function(x) {
     tmp <- df |>
       dplyr::filter(cluster_name == id[x])
-    
+
     tmp |>
       dplyr::mutate(cluster_name = paste(cluster_name,
                                          " (", cl.info$Freq[x], ")", sep = ""))
   }) -> df
-  
+
   # cluster order
   df$cluster_name <- factor(df$cluster_name,
                             levels =
                               paste("cluster ",
-                                    cl.info$Var1, " (", 
+                                    cl.info$Var1, " (",
                                     cl.info$Freq, ")", sep = "")
   )
-  
+
   # return
   prepared_data <- list(
     wide.res = wide.res,
@@ -348,7 +348,7 @@ plot_pseudotime_heatmap2 <- function(cds_subset,
     geneType = "non-branched",
     pseudotime = newdata$Pseudotime
   )
-  
+
   if (return_heatmap == TRUE) {
     grid::grid.rect(gp = grid::gpar("fill", col = NA))
     grid::grid.draw(ph_res$gtable)
@@ -462,7 +462,7 @@ plot_genes_branched_heatmap2 <- function(cds_subset = NULL,
   if (!requireNamespace("Biobase", quietly = TRUE)) {
     stop("Package 'Biobase' is required. Please install it.")
   }
-  
+
   if (requireNamespace("monocle", quietly = TRUE)) {
     cds <- NA
     new_cds <- monocle::buildBranchCellDataSet(
@@ -475,19 +475,19 @@ plot_genes_branched_heatmap2 <- function(cds_subset = NULL,
   } else {
     warning("Cannot find monocle 'monocle' is not installed.")
   }
-  
+
   new_cds@dispFitInfo <- cds_subset@dispFitInfo
-  
+
   if (is.null(branch_states)) {
     progenitor_state <- subset(
       Biobase::pData(cds_subset), Pseudotime == 0)[, "State"]
     branch_states <- setdiff(Biobase::pData(cds_subset)$State, progenitor_state)
   }
-  
+
   col_gap_ind <- 101
   # newdataA <- data.frame(Pseudotime = seq(0, 100, length.out = 100))
   # newdataB <- data.frame(Pseudotime = seq(0, 100, length.out = 100))
-  
+
   newdataA <- data.frame(
     Pseudotime = seq(0, 100, length.out = 100),
     Branch = as.factor(unique(as.character(
@@ -500,7 +500,7 @@ plot_genes_branched_heatmap2 <- function(cds_subset = NULL,
       Biobase::pData(new_cds)$Branch
     ))[2])
   )
-  
+
   if (requireNamespace("monocle", quietly = TRUE)) {
     BranchAB_exprs <- monocle::genSmoothCurves(
       new_cds[, ],
@@ -512,11 +512,11 @@ plot_genes_branched_heatmap2 <- function(cds_subset = NULL,
   } else {
     warning("Cannot find monocle 'monocle' is not installed.")
   }
-  
-  
+
+
   BranchA_exprs <- BranchAB_exprs[, seq(1, 100, 1)]
   BranchB_exprs <- BranchAB_exprs[, seq(101, 200, 1)]
-  
+
   # common_ancestor_cells <- row.names(pData(new_cds)
   # [duplicated(pData(new_cds)$original_cell_id),])
   common_ancestor_cells <- row.names(Biobase::pData(new_cds)
@@ -528,9 +528,9 @@ plot_genes_branched_heatmap2 <- function(cds_subset = NULL,
   BranchA_num <- floor(max(Biobase::pData(new_cds)[common_ancestor_cells,
                                                    "Pseudotime"]))
   BranchB_num <- BranchA_num
-  
+
   norm_method <- match.arg(norm_method)
-  
+
   # FIXME: this needs to check that vst values can even be computed.
   # (They can only be if we're using NB as the expressionFamily)
   if (requireNamespace("monocle", quietly = TRUE)) {
@@ -544,10 +544,10 @@ plot_genes_branched_heatmap2 <- function(cds_subset = NULL,
   } else {
     warning("Cannot find monocle 'monocle' is not installed.")
   }
-  
-  
+
+
   heatmap_matrix <- cbind(BranchA_exprs[, (col_gap_ind - 1):1], BranchB_exprs)
-  
+
   heatmap_matrix <- heatmap_matrix[!apply(heatmap_matrix, 1, sd) == 0, ]
   heatmap_matrix <- Matrix::t(scale(Matrix::t(heatmap_matrix),
                                     center =
@@ -557,21 +557,21 @@ plot_genes_branched_heatmap2 <- function(cds_subset = NULL,
   heatmap_matrix[is.nan(heatmap_matrix)] <- 0
   heatmap_matrix[heatmap_matrix > scale_max] <- scale_max
   heatmap_matrix[heatmap_matrix < scale_min] <- scale_min
-  
+
   heatmap_matrix_ori <- heatmap_matrix
   heatmap_matrix <- heatmap_matrix[is.finite(heatmap_matrix[, 1]) &
                                      is.finite(heatmap_matrix[, col_gap_ind]), ]
   # remove the NA fitting failure genes for each branch
-  
+
   row_dist <- as.dist((1 - cor(Matrix::t(heatmap_matrix))) / 2)
   row_dist[is.na(row_dist)] <- 1
-  
+
   exp_rng <- range(heatmap_matrix) # bks is based on the expression range
   bks <- seq(exp_rng[1] - 0.1, exp_rng[2] + 0.1, by = 0.1)
   if (is.null(hmcols)) {
     hmcols <- colorRamps::blue2green2red(length(bks) - 1)
   }
-  
+
   # prin  t(hmcols)
   if (requireNamespace("pheatmap", quietly = TRUE)) {
     ph <- pheatmap::pheatmap(
@@ -595,17 +595,17 @@ plot_genes_branched_heatmap2 <- function(cds_subset = NULL,
   } else {
     warning("Cannot create heatmap. 'pheatmap' is not installed.")
   }
-  
-  
+
+
   # save(heatmap_matrix, row_dist, num_clusters, hmcols, ph, branchTest_df,
   # qval_lowest_thrsd, branch_labels, BranchA_num, BranchP_num, BranchB_num,
   # file = 'heatmap_matrix')
-  
+
   annotation_row <- data.frame(
     Cluster =
       factor(cutree(ph$tree_row, num_clusters))
   )
-  
+
   if (!is.null(add_annotation_row)) {
     annotation_row <- cbind(annotation_row, add_annotation_row[
       row.names(annotation_row), ])
@@ -613,7 +613,7 @@ plot_genes_branched_heatmap2 <- function(cds_subset = NULL,
     # as.character(Biobase::fData(absolute_cds[
     # row.names(annotation_row), ])$gene_short_name), 1]
   }
-  
+
   colnames(heatmap_matrix) <- c(seq_len(ncol(heatmap_matrix)))
   annotation_col <- data.frame(
     row.names = c(seq_len(ncol(heatmap_matrix))),
@@ -623,26 +623,26 @@ plot_genes_branched_heatmap2 <- function(cds_subset = NULL,
       rep(branch_labels[2], BranchB_num)
     )
   )
-  
+
   colnames(annotation_col) <- "Cell Type"
-  
+
   if (!is.null(add_annotation_col)) {
     annotation_col <- cbind(annotation_col, add_annotation_col[
       Biobase::fData(cds[row.names(annotation_col), ])$gene_short_name, 1])
   }
-  
+
   names(branch_colors) <- c("Pre-branch", branch_labels[1], branch_labels[2])
-  
+
   annotation_colors <- list("Cell Type" = branch_colors)
-  
+
   names(annotation_colors$`Cell Type`) <- c("Pre-branch", branch_labels)
-  
+
   if (use_gene_short_name == TRUE) {
     if (is.null(Biobase::fData(cds_subset)$gene_short_name) == FALSE) {
       feature_label <- as.character(Biobase::fData(cds_subset)[
         row.names(heatmap_matrix), "gene_short_name"])
       feature_label[is.na(feature_label)] <- row.names(heatmap_matrix)
-      
+
       row_ann_labels <- as.character(Biobase::fData(cds_subset)[
         row.names(annotation_row), "gene_short_name"])
       row_ann_labels[is.na(row_ann_labels)] <- row.names(annotation_row)
@@ -654,10 +654,10 @@ plot_genes_branched_heatmap2 <- function(cds_subset = NULL,
     feature_label <- row.names(heatmap_matrix)
     row_ann_labels <- row.names(annotation_row)
   }
-  
+
   row.names(heatmap_matrix) <- feature_label
   row.names(annotation_row) <- row_ann_labels
-  
+
   if (requireNamespace("pheatmap", quietly = TRUE)) {
     ph_res <- pheatmap::pheatmap(
       heatmap_matrix[, ],
@@ -688,16 +688,16 @@ plot_genes_branched_heatmap2 <- function(cds_subset = NULL,
   } else {
     warning("Cannot create heatmap. 'pheatmap' is not installed.")
   }
-  
-  
-  
+
+
+
   # ============================================================================
   # prepare data
   wide.res <- cbind(heatmap_matrix, annotation_row) |>
     data.frame(., check.names = FALSE) |>
     dplyr::mutate(gene = rownames(.), .before = 1) |>
     dplyr::rename(cluster = Cluster)
-  
+
   # wide to long
   df <- reshape2::melt(
     wide.res,
@@ -706,31 +706,31 @@ plot_genes_branched_heatmap2 <- function(cds_subset = NULL,
     value.name = "norm_value"
   ) |>
     dplyr::mutate(cell_type = as.numeric(as.character(cell_type)))
-  
+
   # add cluster name
   df$cluster_name <- paste("cluster ", df$cluster, sep = "")
-  
+
   # add gene number
   cl.info <- data.frame(table(wide.res$cluster)) |>
     dplyr::mutate(Var1 = as.numeric(as.character(Var1))) |>
     dplyr::arrange(Var1)
-  
+
   id <- unique(df$cluster_name)
   purrr::map_df(seq_along(id), function(x) {
     tmp <- df |>
       dplyr::filter(cluster_name == id[x])
-    
+
     tmp |>
       dplyr::mutate(cluster_name = paste(cluster_name,
                                          " (", cl.info$Freq[x], ")", sep = ""))
   }) -> df
-  
+
   # cluster order
   df$cluster_name <- factor(df$cluster_name,
                             levels = paste("cluster ", cl.info$Var1,
                                            " (", cl.info$Freq, ")", sep = "")
   )
-  
+
   # return
   prepared_data <- list(
     wide.res = wide.res,
@@ -740,7 +740,7 @@ plot_genes_branched_heatmap2 <- function(cds_subset = NULL,
     geneType = "branched",
     pseudotime = annotation_col$`Cell Type`
   )
-  
+
   if (return_heatmap == TRUE) {
     grid::grid.rect(gp = grid::gpar("fill", col = NA))
     grid::grid.draw(ph_res$gtable)
@@ -847,11 +847,11 @@ plot_multiple_branches_heatmap2 <- function(
          where branches is included in the pData"
     )
   }
-  
+
   if (!requireNamespace("Biobase", quietly = TRUE)) {
     stop("Package 'Biobase' is required. Please install it.")
   }
-  
+
   branch_label <- branches
   if (!is.null(branches_name)) {
     if (length(branches) != length(branches_name)) {
@@ -859,22 +859,22 @@ plot_multiple_branches_heatmap2 <- function(
     }
     branch_label <- branches_name
   }
-  
+
   # test whether or not the states passed to branches are true branches
   # (not truncks) or there are terminal cells
   g <- cds@minSpanningTree
-  
+
   # g <- igraph::upgrade_graph(g)
-  
+
   m <- NULL
   # branche_cell_num <- c()
   for (branch_in in branches) {
-    branches_cells <- row.names(subset(Biobase::pData(cds), 
+    branches_cells <- row.names(subset(Biobase::pData(cds),
                                        State == branch_in))
     root_state <- subset(Biobase::pData(cds), Pseudotime == 0)[, "State"]
-    root_state_cells <- row.names(subset(Biobase::pData(cds), 
+    root_state_cells <- row.names(subset(Biobase::pData(cds),
                                          State == root_state))
-    
+
     if (cds@dim_reduce_type != "ICA") {
       root_state_cells <- unique(
         paste(
@@ -897,25 +897,25 @@ plot_multiple_branches_heatmap2 <- function(
       igraph::degree(g, v = root_state_cells) == 1)]
     tip_cell <- branches_cells[
       which(igraph::degree(g, v = branches_cells) == 1)]
-    
+
     traverse_res <- traverseTree(g, root_cell, tip_cell)
     path_cells <- names(traverse_res$shortest_path[[1]])
-    
+
     if (cds@dim_reduce_type != "ICA") {
       pc_ind <- cds@auxOrderingData$DDRTree$pr_graph_cell_proj_closest_vertex
       path_cells <- row.names(pc_ind)[
         paste("Y_", pc_ind[, 1], sep = "") %in% path_cells]
     }
-    
+
     cds_subset <- cds[, path_cells]
-    
+
     newdata <- data.frame(
       Pseudotime =
         seq(0, max(
           Biobase::pData(cds_subset)$Pseudotime
         ), length.out = 100)
     )
-    
+
     if (requireNamespace("monocle", quietly = TRUE)) {
       tmp <- monocle::genSmoothCurves(
         cds_subset,
@@ -927,19 +927,19 @@ plot_multiple_branches_heatmap2 <- function(
     } else {
       warning("Cannot find monocle 'monocle' is not installed.")
     }
-    
+
     if (is.null(m)) {
       m <- tmp
     } else {
       m <- cbind(m, tmp)
     }
   }
-  
+
   # remove genes with no expression in any condition
   m <- m[!apply(m, 1, sum) == 0, ]
-  
+
   norm_method <- match.arg(norm_method)
-  
+
   # FIXME: this needs to check that vst values can even be computed.
   # (They can only be if we're using NB as the expressionFamily)
   if (requireNamespace("monocle", quietly = TRUE)) {
@@ -952,8 +952,8 @@ plot_multiple_branches_heatmap2 <- function(
   } else {
     warning("Cannot find monocle 'monocle' is not installed.")
   }
-  
-  
+
+
   # Row-center the data.
   m <- m[!apply(m, 1, sd) == 0, ]
   m <- Matrix::t(scale(Matrix::t(m), center = TRUE))
@@ -961,19 +961,19 @@ plot_multiple_branches_heatmap2 <- function(
   m[is.nan(m)] <- 0
   m[m > scale_max] <- scale_max
   m[m < scale_min] <- scale_min
-  
+
   heatmap_matrix <- m
-  
+
   row_dist <- as.dist((1 - cor(Matrix::t(heatmap_matrix))) / 2)
   row_dist[is.na(row_dist)] <- 1
-  
+
   if (is.null(hmcols)) {
     bks <- seq(-3.1, 3.1, by = 0.1)
     hmcols <- colorRamps::blue2green2red(length(bks) - 1)
   } else {
     bks <- seq(-3.1, 3.1, length.out = length(hmcols))
   }
-  
+
   if (requireNamespace("pheatmap", quietly = TRUE)) {
     ph <- pheatmap::pheatmap(
       heatmap_matrix,
@@ -993,8 +993,8 @@ plot_multiple_branches_heatmap2 <- function(
   } else {
     warning("Cannot create heatmap. 'pheatmap' is not installed.")
   }
-  
-  
+
+
   annotation_col <- data.frame(
     Branch =
       factor(rep(rep(
@@ -1007,7 +1007,7 @@ plot_multiple_branches_heatmap2 <- function(
       factor(cutree(ph$tree_row, num_clusters))
   )
   col_gaps_ind <- c(seq_len((length(branches) - 1))) * 100
-  
+
   if (!is.null(add_annotation_row)) {
     old_colnames_length <- ncol(annotation_row)
     annotation_row <- cbind(
@@ -1018,14 +1018,14 @@ plot_multiple_branches_heatmap2 <- function(
     # Biobase::fData(absolute_cds[row.names(annotation_row), ]
     # )$gene_short_name), 1]
   }
-  
-  
+
+
   if (use_gene_short_name == TRUE) {
     if (is.null(Biobase::fData(cds)$gene_short_name) == FALSE) {
       feature_label <- as.character(Biobase::fData(cds)[
         row.names(heatmap_matrix), "gene_short_name"])
       feature_label[is.na(feature_label)] <- row.names(heatmap_matrix)
-      
+
       row_ann_labels <- as.character(Biobase::fData(cds)[
         row.names(annotation_row), "gene_short_name"])
       row_ann_labels[is.na(row_ann_labels)] <- row.names(annotation_row)
@@ -1037,17 +1037,17 @@ plot_multiple_branches_heatmap2 <- function(
     feature_label <- row.names(heatmap_matrix)
     row_ann_labels <- row.names(annotation_row)
   }
-  
+
   row.names(heatmap_matrix) <- feature_label
   row.names(annotation_row) <- row_ann_labels
-  
-  
+
+
   colnames(heatmap_matrix) <- c(seq_len(ncol(heatmap_matrix)))
-  
+
   if (!(cluster_rows)) {
     annotation_row <- NA
   }
-  
+
   if (requireNamespace("pheatmap", quietly = TRUE)) {
     ph_res <- pheatmap::pheatmap(
       heatmap_matrix[, ],
@@ -1078,16 +1078,16 @@ plot_multiple_branches_heatmap2 <- function(
   } else {
     warning("Cannot create heatmap. 'pheatmap' is not installed.")
   }
-  
-  
-  
+
+
+
   # ============================================================================
   # prepare data
   wide.res <- cbind(heatmap_matrix, annotation_row) |>
     data.frame(., check.names = FALSE) |>
     dplyr::mutate(gene = rownames(.), .before = 1) |>
     dplyr::rename(cluster = Cluster)
-  
+
   # wide to long
   df <- reshape2::melt(
     wide.res,
@@ -1096,32 +1096,32 @@ plot_multiple_branches_heatmap2 <- function(
     value.name = "norm_value"
   ) |>
     dplyr::mutate(cell_type = as.numeric(as.character(cell_type)))
-  
+
   # add cluster name
   df$cluster_name <- paste("cluster ", df$cluster, sep = "")
-  
+
   # add gene number
   cl.info <- data.frame(table(wide.res$cluster)) |>
     dplyr::mutate(Var1 = as.numeric(as.character(Var1))) |>
     dplyr::arrange(Var1)
-  
+
   id <- unique(df$cluster_name)
   purrr::map_df(seq_along(id), function(x) {
     tmp <- df |>
       dplyr::filter(cluster_name == id[x])
-    
+
     tmp |>
       dplyr::mutate(cluster_name = paste(cluster_name,
                                          " (", cl.info$Freq[x], ")", sep = ""))
   }) -> df
-  
+
   # cluster order
   df$cluster_name <- factor(df$cluster_name,
                             levels = paste("cluster ",
                                            cl.info$Var1,
                                            " (", cl.info$Freq, ")", sep = "")
   )
-  
+
   # return
   prepared_data <- list(
     wide.res = wide.res,
@@ -1131,7 +1131,7 @@ plot_multiple_branches_heatmap2 <- function(
     geneType = "branched",
     pseudotime = annotation_col$Branch
   )
-  
+
   if (return_heatmap == TRUE) {
     grid::grid.rect(gp = grid::gpar("fill", col = NA))
     grid::grid.draw(ph_res$gtable)
@@ -1162,31 +1162,34 @@ plot_multiple_branches_heatmap2 <- function(
 #'  "normalized"
 #' @param gene_list A vector of gene names
 #' @return A smoothed pseudotime matrix for the given gene list
-#' 
-#' 
+#'
+#'
 #' @examples
-#' 
-#' cds_subset <- readRDS(system.file('extdata','cds_subset.rds',
-#'                                   package = 'ClusterGVis'))
-#'                                   
-#' genes <- sample(rownames(cds_subset), 20)                              
-#' 
-#' 
+#'
+#' cat("run the following code if you have installed monocle3")
+#'
+#' # cds_subset <- readRDS(system.file('extdata','cds_subset.rds',
+#' #                                   package = 'ClusterGVis'))
+#'
+#' # genes <- sample(rownames(cds_subset), 20)
+#'
+#'
 #' # Extract pseudotime matrix for modulated genes
-#' pt_matrix <- pre_pseudotime_matrix(cds_obj = cds_subset,
-#'                                    assays = "normalized",
-#'                                    gene_list = genes)  
-#'                                    # First 10 genes
-#' 
+#' # pt_matrix <- pre_pseudotime_matrix(cds_obj = cds_subset,
+#' #                                    assays = "normalized",
+#' #                                    gene_list = genes)
+#'
+#'
 #' # Check the result
-#' head(pt_matrix[1:5, 1:5])
-#' 
+#' # head(pt_matrix[1:5, 1:5])
+#'
+#'
 #' @export
 pre_pseudotime_matrix <- function(cds_obj = NULL,
                                   assays = c("counts", "normalized"),
                                   gene_list = NULL) {
   assays <- match.arg(assays, c("counts", "normalized"))
-  
+
   # # choose assays type
   # if (requireNamespace("monocle3", quietly = TRUE)) {
   #   if(assays == "counts"){
@@ -1202,11 +1205,11 @@ pre_pseudotime_matrix <- function(cds_obj = NULL,
   # } else {
   #   warning("Cannot create monocle3 'monocle3' is not installed.")
   # }
-  
+
   if (!requireNamespace("SummarizedExperiment", quietly = TRUE)) {
     stop("Package 'SummarizedExperiment' is required. Please install it.")
   }
-  
+
   if (assays == "counts") {
     pt.matrix <- exprs(cds_obj)[match(gene_list,
                                       rownames(
@@ -1217,7 +1220,7 @@ pre_pseudotime_matrix <- function(cds_obj = NULL,
       match(gene_list, rownames(SummarizedExperiment::rowData(cds_obj))),
       order(pseudotime(cds_obj))]
   }
-  
+
   pt.matrix <- t(apply(pt.matrix, 1, function(x) {
     stats::smooth.spline(x, df = 3)$y
   }))

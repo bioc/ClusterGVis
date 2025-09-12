@@ -36,19 +36,22 @@ each row.
 }
 \examples{
 
-cds_subset <- readRDS(system.file('extdata','cds_subset.rds',
-                                  package = 'ClusterGVis'))
-                                  
-genes <- sample(rownames(cds_subset), 20)                              
+cat("run the following code if you have installed monocle3")
+
+# cds_subset <- readRDS(system.file('extdata','cds_subset.rds',
+#                                   package = 'ClusterGVis'))
+
+# genes <- sample(rownames(cds_subset), 20)
 
 
 # Extract pseudotime matrix for modulated genes
-pt_matrix <- pre_pseudotime_matrix(cds_obj = cds_subset,
-                                   assays = "normalized",
-                                   gene_list = genes)  
-                                   # First 10 genes
+# pt_matrix <- pre_pseudotime_matrix(cds_obj = cds_subset,
+#                                    assays = "normalized",
+#                                    gene_list = genes)
+
 
 # Check the result
-head(pt_matrix[1:5, 1:5])
+# head(pt_matrix[1:5, 1:5])
+
 
 }
